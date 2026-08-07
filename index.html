@@ -313,7 +313,7 @@
 
       <div class="body-sep"></div>
       <div class="pk-title">2️⃣ 填写身体数据</div>
-      <div class="pk-sub">和计算器页一样用滚轮，默认男 / 25岁 / 170cm / 75kg</div>
+      <div class="pk-sub">滚轮选择；会自动记住上次设定的数据（首次默认 男 / 25岁 / 170cm / 75kg）</div>
       <div class="wheel-row">
         <div class="pk-col"><div class="pk-label">性别</div><div class="wheel"><div class="wl"></div><ul id="home-gender-list"></ul></div></div>
         <div class="pk-col"><div class="pk-label">年龄</div><div class="wheel" id="home-age-wrap"><div class="wl"></div><ul id="home-age-list"></ul></div></div>
@@ -361,7 +361,7 @@
 
     <div class="card">
       <div class="pk-title">2️⃣ 填写身体数据</div>
-      <div class="pk-sub">上下滚动选择；<b>点中间的数字可以直接输入</b>（默认男 / 25岁 / 170cm / 75kg）</div>
+      <div class="pk-sub">上下滚动选择；<b>点中间的数字可以直接输入</b>（自动记住上次记录，首次默认 男 / 25岁 / 170cm / 75kg）</div>
       <div class="wheel-row">
         <div class="pk-col"><div class="pk-label">性别</div><div class="wheel" id="calc-gender-wrap"><div class="wl"></div><ul id="calc-gender-list"></ul></div></div>
         <div class="pk-col"><div class="pk-label">年龄</div><div class="wheel" id="calc-age-wrap"><div class="wl"></div><ul id="calc-age-list"></ul></div></div>
@@ -486,7 +486,26 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   var PLAN_A = ['减脂','增肌','减脂无力训'];
   var PLAN_B = ['早饭后练（早起版）','早饭后练（晚起版）','午饭前练','午饭后练','晚饭前练','晚饭后练','夜里练'];
 
-  var state = { planA:0, planB:0, gender:0, age:25, height:170, weight:75, strength:200, cardio:50 };
+  /* 身体数据记忆：记录上次设定的性别/年龄/身高/体重，刷新后继续用；无记录用默认 男/25/170/75 */
+  var BODY_KEY = 'web_v1_body_v2';
+  function defaultBody(){ return {gender:0, age:25, height:170, weight:75}; }
+  function loadBody(){
+    var b = defaultBody();
+    try{
+      var s = localStorage.getItem(BODY_KEY);
+      if(s){ var o = JSON.parse(s);
+        if(o && typeof o.gender === 'number' && o.age>=10 && o.age<=80 && o.height>=140 && o.height<=210 && o.weight>=35 && o.weight<=150){
+          b = {gender: o.gender===1?1:0, age: Math.round(o.age), height: Math.round(o.height), weight: Math.round(o.weight)};
+        }
+      }
+    }catch(e){}
+    return b;
+  }
+  function saveBody(g, a, h, w){
+    try{ localStorage.setItem(BODY_KEY, JSON.stringify({gender:g, age:a, height:h, weight:w})); }catch(e){}
+  }
+  var savedBody = loadBody();
+  var state = { planA:0, planB:0, gender:savedBody.gender, age:savedBody.age, height:savedBody.height, weight:savedBody.weight, strength:200, cardio:50 };
   var pctState = null;
 
   /* ---------- 工具 ---------- */
@@ -569,7 +588,33 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
         wheelAcc = 0;
       }
     }, {passive:false});
-    for(var k=0;k<ul.children.length;k++){ (function(li,k){ li.addEventListener('click', function(){ if(k===curIdx && editFn){ editFn(); } else { ul.scrollTop = k*H; select(k); } }); })(ul.children[k], k); }
+    // 鼠标按住拖动（上下拖）；触摸保持原生滑动
+    var dragStart = null, dragged = false;
+    function wDragStart(e){
+      if(e.pointerType !== 'mouse' || e.button !== 0) return;
+      dragStart = { y: e.clientY, st: ul.scrollTop };
+      dragged = false;
+      try{ ul.setPointerCapture(e.pointerId); }catch(err){}
+      document.body.style.userSelect = 'none';
+    }
+    function wDragMove(e){
+      if(!dragStart) return;
+      var dy = e.clientY - dragStart.y;
+      if(!dragged && Math.abs(dy) > 3) dragged = true;
+      if(!dragged) return;
+      e.preventDefault();
+      ul.scrollTop = dragStart.st - dy;
+    }
+    function wDragEnd(){
+      dragStart = null;
+      document.body.style.userSelect = '';
+      if(dragged) setTimeout(function(){ dragged = false; }, 0);
+    }
+    ul.addEventListener('pointerdown', wDragStart);
+    ul.addEventListener('pointermove', wDragMove);
+    ul.addEventListener('pointerup', wDragEnd);
+    ul.addEventListener('pointercancel', wDragEnd);
+    for(var k=0;k<ul.children.length;k++){ (function(li,k){ li.addEventListener('click', function(){ if(dragged){ dragged = false; return; } if(k===curIdx && editFn){ editFn(); } else { ul.scrollTop = k*H; select(k); } }); })(ul.children[k], k); }
     ul._setEdit = function(fn){ editFn = fn; };
     set(0);
     return { get:index, set:set, cur:function(){ return curIdx; } };
@@ -766,6 +811,7 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   var syncingWheels = false;   // 程序定位滚轮时屏蔽滚轮回写（防隐藏→显示产生的假滚动污染状态）
   var expectedBody = null;     // 本次进入时的期望身体数据（防假滚动污染后恢复用）
   function initInputs(){
+    syncingWheels = true;   // 创建滚轮期间屏蔽程序定位回写，防止把第一格当用户数据保存
     fillWheel($('#calc-planA-list'), PLAN_A);
     fillWheel($('#calc-planB-list'), PLAN_B);
     fillWheel($('#calc-gender-list'), ['男','女']);
@@ -777,14 +823,20 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
     fillWheel($('#calc-weight-list'), ws);
     wPlanA = makeWheel($('#calc-planA-list'), function(i){ if(syncingWheels) return; state.planA=i; $('#calc-planB-wrap').classList.toggle('disabled', i===2); renderInputSummary(); });
     wPlanB = makeWheel($('#calc-planB-list'), function(i){ if(syncingWheels) return; if(state.planA!==2) state.planB=i; renderInputSummary(); });
-    wGender = makeWheel($('#calc-gender-list'), function(i){ if(syncingWheels) return; state.gender=i; });
-    wAge = makeWheel($('#calc-age-list'), function(i){ if(syncingWheels) return; state.age=10+i; });
-    wHeight = makeWheel($('#calc-height-list'), function(i){ if(syncingWheels) return; state.height=140+i; });
-    wWeight = makeWheel($('#calc-weight-list'), function(i){ if(syncingWheels) return; state.weight=35+i; });
+    wGender = makeWheel($('#calc-gender-list'), function(i){ if(syncingWheels) return; state.gender=i; saveBody(state.gender, state.age, state.height, state.weight); });
+    wAge = makeWheel($('#calc-age-list'), function(i){ if(syncingWheels) return; state.age=10+i; saveBody(state.gender, state.age, state.height, state.weight); });
+    wHeight = makeWheel($('#calc-height-list'), function(i){ if(syncingWheels) return; state.height=140+i; saveBody(state.gender, state.age, state.height, state.weight); });
+    wWeight = makeWheel($('#calc-weight-list'), function(i){ if(syncingWheels) return; state.weight=35+i; saveBody(state.gender, state.age, state.height, state.weight); });
     // 点中间的数字可直接输入
-    bindWheelEdit(wAge, $('#calc-age-wrap'), 10, 80, function(v){ state.age=v; });
-    bindWheelEdit(wHeight, $('#calc-height-wrap'), 140, 210, function(v){ state.height=v; });
-    bindWheelEdit(wWeight, $('#calc-weight-wrap'), 35, 150, function(v){ state.weight=v; });
+    bindWheelEdit(wAge, $('#calc-age-wrap'), 10, 80, function(v){ state.age=v; saveBody(state.gender, state.age, state.height, state.weight); });
+    bindWheelEdit(wHeight, $('#calc-height-wrap'), 140, 210, function(v){ state.height=v; saveBody(state.gender, state.age, state.height, state.weight); });
+    bindWheelEdit(wWeight, $('#calc-weight-wrap'), 35, 150, function(v){ state.weight=v; saveBody(state.gender, state.age, state.height, state.weight); });
+    // 用记忆的身体数据定位滚轮（没有记录则用默认 男/25/170/75）
+    if(wGender) wGender.set(savedBody.gender);
+    if(wAge) wAge.set(savedBody.age - 10);
+    if(wHeight) wHeight.set(savedBody.height - 140);
+    if(wWeight) wWeight.set(savedBody.weight - 35);
+    syncingWheels = false;
     $('#calc-strength-val').textContent = state.strength;
     $('#calc-cardio-val').textContent = state.cardio;
     renderInputSummary();
@@ -810,7 +862,8 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       state.gender = expectedBody.gender; state.age = expectedBody.age;
       state.height = expectedBody.height; state.weight = expectedBody.weight;
     } else {
-      state.gender = 0; state.age = 25; state.height = 170; state.weight = 75;
+      var b = savedBody;
+      state.gender = b.gender; state.age = b.age; state.height = b.height; state.weight = b.weight;
     }
     if(wGender) wGender.set(state.gender);
     if(wAge) wAge.set(state.age - 10);
@@ -831,7 +884,8 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
         state.gender = body.gender; state.age = body.age;
         state.height = body.height; state.weight = body.weight;
       } else {
-        state.gender = 0; state.age = 25; state.height = 170; state.weight = 75;
+        var b = savedBody;
+        state.gender = b.gender; state.age = b.age; state.height = b.height; state.weight = b.weight;
       }
       // 2) 进入期间屏蔽滚轮回写，防止隐藏→显示产生的假滚动污染状态
       syncingWheels = true;
@@ -1442,10 +1496,36 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
         wheelAcc = 0;
       }
     }, {passive:false});
+    // 鼠标按住拖动（上下拖）；触摸保持原生滑动
+    var dragStart = null, dragged = false;
+    function wDragStart(e){
+      if(e.pointerType !== 'mouse' || e.button !== 0) return;
+      dragStart = { y: e.clientY, st: ul.scrollTop };
+      dragged = false;
+      try{ ul.setPointerCapture(e.pointerId); }catch(err){}
+      document.body.style.userSelect = 'none';
+    }
+    function wDragMove(e){
+      if(!dragStart) return;
+      var dy = e.clientY - dragStart.y;
+      if(!dragged && Math.abs(dy) > 3) dragged = true;
+      if(!dragged) return;
+      e.preventDefault();
+      ul.scrollTop = dragStart.st - dy;
+    }
+    function wDragEnd(){
+      dragStart = null;
+      document.body.style.userSelect = '';
+      if(dragged) setTimeout(function(){ dragged = false; }, 0);
+    }
+    ul.addEventListener('pointerdown', wDragStart);
+    ul.addEventListener('pointermove', wDragMove);
+    ul.addEventListener('pointerup', wDragEnd);
+    ul.addEventListener('pointercancel', wDragEnd);
     for(var k=0;k<ul.children.length;k++){
       (function(li,k){
         // 点选中的数字 → 弹出输入；点其他 → 立即选中（不用动画）
-        li.addEventListener('click', function(){ if(k===curIdx && editFn){ editFn(); } else { ul.scrollTop = k * H; select(k); } });
+        li.addEventListener('click', function(){ if(dragged){ dragged = false; return; } if(k===curIdx && editFn){ editFn(); } else { ul.scrollTop = k * H; select(k); } });
       })(ul.children[k], k);
     }
     ul._setEdit = function(fn){ editFn = fn; };
@@ -1484,7 +1564,25 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   var wheelB = $('#wheel-b'), wheelBList = $('#wheel-b-list');
   fillWheel($('#wheel-a-list'), PLAN_A);
   fillWheel(wheelBList, PLAN_B);
-  var stateA = 0, stateB = 0;
+  /* 方案记忆：记住上次选择的 减脂/增肌/减脂无力训 和 练的时间，刷新后自动恢复 */
+  var PLAN_KEY = 'web_v1_plan';
+  function loadPlan(){
+    try{
+      var s = localStorage.getItem(PLAN_KEY);
+      if(s){ var o = JSON.parse(s);
+        if(o && (o.planA===0 || o.planA===1 || o.planA===2)){
+          var pb = (o.planB>=0 && o.planB<=6) ? o.planB : 0;
+          return {planA: o.planA, planB: o.planA===2 ? 0 : pb};
+        }
+      }
+    }catch(e){}
+    return {planA:0, planB:0};
+  }
+  function savePlan(){
+    try{ localStorage.setItem(PLAN_KEY, JSON.stringify({planA: stateA, planB: stateA===2 ? 0 : stateB})); }catch(e){}
+  }
+  var savedPlan = loadPlan();
+  var stateA = savedPlan.planA, stateB = savedPlan.planA===2 ? 0 : savedPlan.planB;
   function resultText(){
     if(stateA === 2){
       return '你选择的是：<b>减脂无力训</b>（原表第 8 张）';
@@ -1498,11 +1596,14 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   }
   var wa = makeWheel($('#wheel-a-list'), function(i){
     if(!homeVisible()) return;
-    stateA = i; refresh();
+    stateA = i; refresh(); savePlan();
     if(i !== 2){ /* 恢复B默认位置并选中 */ wa2 && wa2.set(stateB); }
   });
-  var wa2 = makeWheel(wheelBList, function(i){ if(!homeVisible()) return; if(stateA !== 2) stateB = i; refresh(); });
+  var wa2 = makeWheel(wheelBList, function(i){ if(!homeVisible()) return; if(stateA !== 2) stateB = i; refresh(); savePlan(); });
   refresh();
+  /* 用记忆值定位方案滚轮（创建时的自动定位会先归零，这里再定位回记录值） */
+  wa.set(savedPlan.planA);
+  if(savedPlan.planA !== 2) wa2.set(savedPlan.planB);
 
   /* 首页身体数据滚轮（默认男/25岁/170cm/75kg，与计算器页一致） */
   fillWheel($('#home-gender-list'), ['男','女']);
@@ -1512,17 +1613,39 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   fillWheel($('#home-height-list'), hHs);
   var hWs=[]; for(var w=35;w<=150;w++) hWs.push(w+'kg');
   fillWheel($('#home-weight-list'), hWs);
-  var homeBodyState = {gender: 0, age: 25, height: 170, weight: 75};
+  /* 身体数据记忆：与计算器页共用同一份记录（localStorage），刷新后自动恢复 */
+  var BODY_KEY = 'web_v1_body_v2';
+  function loadBody(){
+    var b = {gender:0, age:25, height:170, weight:75};
+    try{
+      var s = localStorage.getItem(BODY_KEY);
+      if(s){ var o = JSON.parse(s);
+        if(o && typeof o.gender === 'number' && o.age>=10 && o.age<=80 && o.height>=140 && o.height<=210 && o.weight>=35 && o.weight<=150){
+          b = {gender: o.gender===1?1:0, age: Math.round(o.age), height: Math.round(o.height), weight: Math.round(o.weight)};
+        }
+      }
+    }catch(e){}
+    return b;
+  }
+  function saveBody(g, a, h, w){
+    try{ localStorage.setItem(BODY_KEY, JSON.stringify({gender:g, age:a, height:h, weight:w})); }catch(e){}
+  }
+  var homeBodyState = loadBody();
+  var initBody = {gender: homeBodyState.gender, age: homeBodyState.age, height: homeBodyState.height, weight: homeBodyState.weight};   // 加载时的干净值（创建滚轮期间可能被内部定位暂时污染）
   function homeVisible(){ var el = document.getElementById('sec-home'); return el && el.classList.contains('active'); }
-  var wHomeGender = makeWheel($('#home-gender-list'), function(i){ if(homeVisible()) homeBodyState.gender = i; });
-  var wHomeAge = makeWheel($('#home-age-list'), function(i){ if(homeVisible()) homeBodyState.age = 10 + i; });
-  var wHomeHeight = makeWheel($('#home-height-list'), function(i){ if(homeVisible()) homeBodyState.height = 140 + i; });
-  var wHomeWeight = makeWheel($('#home-weight-list'), function(i){ if(homeVisible()) homeBodyState.weight = 35 + i; });
-  wHomeAge.set(15); wHomeHeight.set(30); wHomeWeight.set(40);
+  var wHomeGender = makeWheel($('#home-gender-list'), function(i){ if(homeVisible()){ homeBodyState.gender = i; saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight); } });
+  var wHomeAge = makeWheel($('#home-age-list'), function(i){ if(homeVisible()){ homeBodyState.age = 10 + i; saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight); } });
+  var wHomeHeight = makeWheel($('#home-height-list'), function(i){ if(homeVisible()){ homeBodyState.height = 140 + i; saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight); } });
+  var wHomeWeight = makeWheel($('#home-weight-list'), function(i){ if(homeVisible()){ homeBodyState.weight = 35 + i; saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight); } });
+  // 用加载时的干净值定位滚轮，并把状态恢复为干净值（覆盖创建期间的临时污染）
+  homeBodyState = {gender: initBody.gender, age: initBody.age, height: initBody.height, weight: initBody.weight};
+  wHomeGender.set(initBody.gender);
+  wHomeAge.set(initBody.age - 10); wHomeHeight.set(initBody.height - 140); wHomeWeight.set(initBody.weight - 35);
+  saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight);
   // 首页年龄/身高/体重：点中间的数字可直接输入（和计算器页一样）
-  bindWheelEdit(wHomeAge, $('#home-age-wrap'), 10, 80, function(v){ if(homeVisible()) homeBodyState.age = v; });
-  bindWheelEdit(wHomeHeight, $('#home-height-wrap'), 140, 210, function(v){ if(homeVisible()) homeBodyState.height = v; });
-  bindWheelEdit(wHomeWeight, $('#home-weight-wrap'), 35, 150, function(v){ if(homeVisible()) homeBodyState.weight = v; });
+  bindWheelEdit(wHomeAge, $('#home-age-wrap'), 10, 80, function(v){ if(homeVisible()){ homeBodyState.age = v; saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight); } });
+  bindWheelEdit(wHomeHeight, $('#home-height-wrap'), 140, 210, function(v){ if(homeVisible()){ homeBodyState.height = v; saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight); } });
+  bindWheelEdit(wHomeWeight, $('#home-weight-wrap'), 35, 150, function(v){ if(homeVisible()){ homeBodyState.weight = v; saveBody(homeBodyState.gender, homeBodyState.age, homeBodyState.height, homeBodyState.weight); } });
 
   function homeBody(){
     return { gender: homeBodyState.gender, age: homeBodyState.age, height: homeBodyState.height, weight: homeBodyState.weight };
@@ -1688,7 +1811,21 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       zoomAt(mx, my, s1);
     }
   }, {passive:false});
-  lightbox.addEventListener('touchend', function(){ pinch = null; });
+  // 松开时把旋转角度吸附到最近的 90°（0/90/180/270/360），拖动时自由不阻碍
+  function lbSnapRot(){
+    var target = Math.round(lbRot / 90) * 90;
+    if(Math.abs(target - lbRot) < 0.01) return;
+    var start = lbRot, diff = target - start, t0 = performance.now(), dur = 160;
+    cancelAnimationFrame(lbRaf);
+    (function step(now){
+      var p = Math.min(1, (now - t0) / dur);
+      var ease = 1 - Math.pow(1 - p, 3);
+      lbRot = start + diff * ease;
+      lbApply();
+      if(p < 1) lbRaf = requestAnimationFrame(step);
+    })(t0);
+  }
+  lightbox.addEventListener('touchend', function(){ pinch = null; lbSnapRot(); });
   // 拖动 + 惯性（放大后才能拖）
   var drag = null;
   lightbox.addEventListener('pointerdown', function(e){
