@@ -894,7 +894,7 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       sects.forEach(function(s){ var e=document.getElementById(s); if(e && s!=='sec-calc') e.classList.remove('active'); });
       var btns = document.querySelectorAll('.bottom-nav button');
       btns.forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-sec')==='sec-calc'); });
-      window.scrollTo(0,0);
+      window.scrollTo(0, (window.__scrollPos && window.__scrollPos['sec-calc']) || 0);
       if(!pctState){ pctState = {}; }
       renderInputSummary();
       renderResult();
@@ -1364,6 +1364,8 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
 
   /* ---------- 对外 ---------- */
   window.STAGEC = {
+    scrollPos: {},   // 每个小页（问答/训练子tab）各自的滚动位置
+    curTab: {'sec-qa': 0, 'sec-train': 0},
     init: function(){
       var qb = document.querySelectorAll('#qa-tabs button');
       if(qb[0]) qb[0].textContent = '减脂问答(' + (((data.qa17||{}).toc)||[]).length + ')';
@@ -1379,6 +1381,10 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       STAGEC.activate('sec-train', 0);
     },
     setTab: function(sec, idx){
+      // 保存当前小页的滚动位置，再切换（每个小页各自记忆）
+      var curKey = sec + '_' + (this.curTab[sec] || 0);
+      this.scrollPos[curKey] = window.scrollY;
+      this.curTab[sec] = idx;
       var sel = sec === 'sec-qa' ? '#qa-tabs button' : '#train-tabs button';
       var btns = document.querySelectorAll(sel);
       btns.forEach(function(x, i){
@@ -1389,6 +1395,11 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
         }
       });
       STAGEC.activate(sec, idx);
+      // 内容渲染完恢复目标小页自己的位置
+      var key = sec + '_' + idx;
+      var self = this;
+      setTimeout(function(){ window.scrollTo(0, self.scrollPos[key] || 0); }, 30);
+      setTimeout(function(){ window.scrollTo(0, self.scrollPos[key] || 0); }, 160);
     },
     activate: function(sec, idx){
       if(sec === 'sec-qa'){
@@ -1449,13 +1460,28 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   function setNav(key){
     navBtns.forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-sec') === key); });
   }
+  /* 每个页面各自记住滚动位置，切换页面互不影响 */
+  var scrollPos = {};
+  function currentSection(){
+    for(var i=0;i<sections.length;i++){
+      var el = document.getElementById(sections[i]);
+      if(el && el.classList.contains('active')) return sections[i];
+    }
+    return null;
+  }
+  function saveCurrentScroll(){
+    var c = currentSection();
+    if(c) scrollPos[c] = window.scrollY;
+  }
   function show(id){
+    saveCurrentScroll();
     sections.forEach(function(s){
       var el = document.getElementById(s);
       if(el) el.classList.toggle('active', s === id);
     });
-    window.scrollTo(0,0);
+    window.scrollTo(0, scrollPos[id] || 0);
   }
+  window.__scrollPos = scrollPos;
   function showWip(){ /* 无占位页面 */ }
   navBtns.forEach(function(b){
     b.addEventListener('click', function(){
@@ -1656,6 +1682,7 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
     if(goBusy) return;
     goBusy = true;
     setTimeout(function(){ goBusy = false; }, 500);
+    saveCurrentScroll();
     try{
       CALC.showWithPlan(stateA, stateB, homeBody());
     }catch(err){
@@ -1663,7 +1690,7 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       var sc = document.getElementById('sec-calc');
       if(sc) sc.classList.add('active');
       ['sec-home','sec-atlas'].forEach(function(s){ var e=document.getElementById(s); if(e) e.classList.remove('active'); });
-      window.scrollTo(0,0);
+      window.scrollTo(0, (window.__scrollPos && window.__scrollPos['sec-calc']) || 0);
     }
   }
   var goEl = $('#pk-go');
