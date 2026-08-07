@@ -1785,8 +1785,12 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
     var imgW = lbImg.offsetWidth || 300, imgH = lbImg.offsetHeight || 300;
     var vw = lightbox.clientWidth, vh = lightbox.clientHeight;
     var w = imgW * lbScale, h = imgH * lbScale;
-    var mx = w > vw ? (w - vw) / 2 : 0;
-    var my = h > vh ? (h - vh) / 2 : 0;
+    // 按旋转后的包围盒计算边界（旋转90/180/270后宽高互换）
+    var rad = lbRot * Math.PI / 180;
+    var bw = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad));
+    var bh = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad));
+    var mx = bw > vw ? (bw - vw) / 2 : 0;
+    var my = bh > vh ? (bh - vh) / 2 : 0;
     lbTx = Math.max(-mx, Math.min(mx, lbTx));
     lbTy = Math.max(-my, Math.min(my, lbTy));
   }
@@ -1888,7 +1892,7 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       vx *= f; vy *= f;
       lbTx += vx * dt / 16; lbTy += vy * dt / 16;
       lbApply();
-      if(Math.abs(vx) < 0.3 && Math.abs(vy) < 0.3) return;
+      if(Math.abs(vx) < 0.3 && Math.abs(vy) < 0.3){ lbClamp(); lbApply(); return; }
       lbRaf = requestAnimationFrame(step);
     })();
   }
