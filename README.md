@@ -21,10 +21,10 @@
 
 ## 怎么用
 
-手机或电脑浏览器直接打开即可。
-网站1：https://gowntn.github.io/fitness-table-web/
-网站2：https://fitness-table-web.pages.dev/
-首次打开如果图片加载稍慢，等一会儿就好（图片是原图，比较大）；加载过一次之后会变快。
+- 手机或电脑浏览器直接打开即可。
+- 网站1：https://gowntn.github.io/fitness-table-web/
+- 网站2：https://fitness-table-web.pages.dev/
+- 首次打开如果图片加载稍慢，等一会儿就好（图片是原图，比较大）；加载过一次之后会变快。
 
 ## 说明
 
