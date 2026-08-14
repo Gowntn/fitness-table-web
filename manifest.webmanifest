@@ -1,0 +1,17 @@
+{
+  "name": "健身Excel超级套表",
+  "short_name": "健身套表",
+  "description": "健身Excel超级套表 手机网页版：饮食方案计算 / 训练计划 / 问答 / 解剖图谱",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f8",
+  "theme_color": "#e8630c",
+  "icons": [
+    { "src": "images/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "images/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "images/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,21 @@
+# Cloudflare Pages 缓存策略（v3）
+# 图片（原图/缩略图/压缩图/PWA图标/分享图）：内容不变，长缓存 + immutable
+/images/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 应用外壳：短缓存，保证更新能及时生效
+/index.html
+  Cache-Control: public, max-age=3600
+
+# PWA 清单：短缓存
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600
+
+# Service Worker：禁止长缓存，否则更新收不到
+/sw.js
+  Cache-Control: no-cache
+
+# 通用安全头
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

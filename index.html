@@ -5,6 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="健身Excel超级套表 手机网页版 v2 CDN加速版（内容源自B站UP主好人松松，网页版由B站Gowntn 制作）">
 <title>健身Excel超级套表 · 手机网页版 v2</title>
+<meta name="theme-color" content="#e8630c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8F%8B%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<!-- 社交分享卡片（微信/QQ） -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="健身Excel超级套表">
+<meta property="og:title" content="健身Excel超级套表 · 手机网页版">
+<meta property="og:description" content="饮食方案计算 / 训练计划 / 问答 / 解剖图谱，手机直接使用。内容源自B站UP主好人松松《健身Excel超级套表》，网页版由Gowntn 制作。">
+<meta property="og:url" content="https://fitness-table-web.pages.dev/">
+<meta property="og:image" content="https://fitness-table-web.pages.dev/images/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<script>
+/* 深色模式提前应用：首屏渲染前就设置 data-theme，避免深色用户白闪一下 */
+try{ if(localStorage.getItem('web_v1_theme')==='dark') document.documentElement.setAttribute('data-theme','dark'); }catch(e){}
+</script>
 <style>
   :root{
     --bg:#f4f6f8; --card:#ffffff; --ink:#1f2937; --sub:#6b7280;
@@ -219,16 +237,6 @@
   .img-item .cap{font-size:11px; color:var(--sub); padding:6px 8px; text-align:center;}
   .img-item .img-err{color:#dc2626; cursor:pointer;}
 
-  /* 建设中 */
-  .wip{text-align:center; padding:48px 20px; color:var(--sub);}
-  .wip .big{font-size:44px; margin-bottom:10px;}
-  .wip .t1{font-size:17px; font-weight:700; color:var(--ink); margin-bottom:6px;}
-  .wip .t2{font-size:13px; line-height:1.8;}
-  .wip .stage{
-    display:inline-block; margin-top:14px; background:var(--chip-bg); color:var(--chip-ink);
-    font-size:12px; font-weight:600; border-radius:999px; padding:6px 14px;
-  }
-
   .footer{margin-top:26px; text-align:center; font-size:12px; color:var(--sub); line-height:1.8; padding:8px 12px 4px;}
   .footer .fh{border-top:1px solid var(--line); padding-top:12px;}
   .app-header .credit a{color:#fff; text-decoration:underline;}
@@ -252,9 +260,9 @@
   .bottom-nav button .ic{font-size:19px; line-height:1;}
   .bottom-nav button.on{color:var(--brand); font-weight:700;}
 
-  /* 灯箱（图片保持原亮度，不随深色变化） */
+  /* 灯箱（图片保持原亮度，不随深色变化；底色纯黑，加载中显示为纯黑画面） */
   .lightbox{
-    position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.92);
+    position:fixed; inset:0; z-index:50; background:#000;
     display:none; align-items:center; justify-content:center; padding:16px;
   }
   .lightbox.show{display:flex;}
@@ -269,6 +277,30 @@
     border:0; border-radius:999px; padding:8px 18px; font-size:13px; color:#fff;
     background:rgba(255,255,255,.18); cursor:pointer; z-index:2;
   }
+  .lightbox .lb-orig{
+    position:absolute; bottom:calc(14px + env(safe-area-inset-bottom)); right:16px;
+    border:0; border-radius:999px; padding:8px 18px; font-size:13px; color:#fff;
+    background:rgba(255,255,255,.18); cursor:pointer; z-index:2;
+    transition:background .2s ease, opacity .2s ease;
+  }
+  .lightbox .lb-orig:disabled{opacity:.55; cursor:wait;}
+  .lightbox .lb-orig.done{background:rgba(22,163,74,.8);}
+  /* 加载中：纯黑画面 + 白色小转圈（GitHub 上加载变慢时也稳定好看） */
+  .lightbox .lb-loading{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    color:#fff; font-size:14px; z-index:2; display:none;
+    text-align:center; line-height:1.8; white-space:nowrap;
+  }
+  .lightbox .lb-spinner{
+    width:34px; height:34px; margin:0 auto 8px;
+    border:3px solid rgba(255,255,255,.22); border-top-color:#fff;
+    border-radius:50%; animation:lb-spin .8s linear infinite;
+  }
+  .lightbox .lb-loading.err .lb-spinner{ display:none; }
+  @keyframes lb-spin{ to{ transform:rotate(360deg); } }
+  /* 图片加载好后再淡入显示，避免闪烁 */
+  @keyframes lb-in{ from{opacity:0;} to{opacity:1;} }
+  .lightbox img.lb-fade{ animation:lb-in .22s ease; }
   .lightbox .lb-hint{
     position:absolute; top:calc(14px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
     font-size:11px; color:rgba(255,255,255,.7); background:rgba(0,0,0,.3); border-radius:999px; padding:4px 12px; z-index:2; white-space:nowrap;
@@ -412,7 +444,7 @@
 
   <!-- ============ 图谱 ============ -->
   <section id="sec-atlas" class="section">
-    <div class="note">🔍 点击任意图片可<b>全屏放大</b>；图片为原图未压缩，<b>深色模式下图片亮度不变</b>。</div>
+    <div class="note">🔍 点击任意图片可<b>全屏放大</b>：网格先显示<b>缩略图</b>（秒开），点开后默认是<b>压缩图</b>；需要看清细节时点灯箱里的<b>「查看原图」</b>加载原图，<b>加载过一次后自动记住，刷新不用重新下载</b>。<b>深色模式下图片亮度不变</b>。</div>
 
     <div class="gallery-title" id="atlas-upper">25 · 上身肌肉拉伸 <small>（10 张）</small></div>
     <div class="img-list" id="gal-upper"></div>
@@ -451,6 +483,8 @@
 <div class="lightbox" id="lightbox">
   <button class="lb-close" id="lb-close">✕</button>
   <button class="lb-reset" id="lb-reset">↺ 复原</button>
+  <button class="lb-orig" id="lb-orig">🖼 查看原图</button>
+  <div class="lb-loading" id="lb-loading"><div class="lb-spinner"></div><span id="lb-loading-txt">加载中…</span></div>
   <div class="lb-hint">滚轮/双指缩放 · 双指旋转 · 点 ✕ 或空白关闭</div>
   <img id="lb-img" alt="">
 </div>
@@ -890,10 +924,12 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       // 2) 进入期间屏蔽滚轮回写，防止隐藏→显示产生的假滚动污染状态
       syncingWheels = true;
       document.getElementById('sec-calc').classList.add('active');
-      var sects = ['sec-home','sec-calc','sec-atlas'];
+      // 全部 section 都要处理：否则从问答/训练页点「计算」时，那个页面会一直保持 active，两个页面同时显示
+      var sects = ['sec-home','sec-calc','sec-qa','sec-train','sec-atlas'];
       sects.forEach(function(s){ var e=document.getElementById(s); if(e && s!=='sec-calc') e.classList.remove('active'); });
       var btns = document.querySelectorAll('.bottom-nav button');
       btns.forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-sec')==='sec-calc'); });
+      if(window.__setHash) window.__setHash('sec-calc');
       window.scrollTo(0, (window.__scrollPos && window.__scrollPos['sec-calc']) || 0);
       if(!pctState){ pctState = {}; }
       renderInputSummary();
@@ -1400,6 +1436,8 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       var self = this;
       setTimeout(function(){ window.scrollTo(0, self.scrollPos[key] || 0); }, 30);
       setTimeout(function(){ window.scrollTo(0, self.scrollPos[key] || 0); }, 160);
+      // hash 路由：把子页签写进 URL（#/qa/1 等），刷新/分享可恢复
+      if(window.__setHash) window.__setHash(sec, idx);
     },
     activate: function(sec, idx){
       if(sec === 'sec-qa'){
@@ -1427,8 +1465,9 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
 <script>
 (function(){
   var $ = function(s){ return document.querySelector(s); };
-  /* 全局错误提示：页面有任何脚本错误会在底部显示红条，方便定位问题 */
-  window.addEventListener('error', function(e){
+  /* 全局错误提示：URL 带 ?debug=1 时，页面脚本出错会在底部显示红条（开发排障用，线上不打扰用户） */
+  var DEBUG_MODE = /[?&]debug=1/.test(location.search);
+  if(DEBUG_MODE) window.addEventListener('error', function(e){
     var b = document.getElementById('err-banner');
     if(!b){
       b = document.createElement('div');
@@ -1446,6 +1485,8 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   function applyTheme(t){
     document.documentElement.setAttribute('data-theme', t);
     themeBtn.textContent = (t === 'dark') ? '☀️' : '🌙';
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if(tc) tc.setAttribute('content', t === 'dark' ? '#0f1115' : '#e8630c');
     try{ localStorage.setItem('web_v1_theme', t); }catch(e){}
   }
   var saved = null;
@@ -1479,18 +1520,45 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
       var el = document.getElementById(s);
       if(el) el.classList.toggle('active', s === id);
     });
+    setNav(id);
     window.scrollTo(0, scrollPos[id] || 0);
   }
   window.__scrollPos = scrollPos;
-  function showWip(){ /* 无占位页面 */ }
+
+  /* ---------- Hash 路由：刷新保持当前页、返回键可用、可分享深链（#/calc、#/qa/1…） ---------- */
+  var SEC_NAME = { 'home':'sec-home', 'calc':'sec-calc', 'qa':'sec-qa', 'train':'sec-train', 'atlas':'sec-atlas' };
+  function setHash(sec, tab){
+    var h = '#/' + sec.replace('sec-', '');
+    if(typeof tab === 'number') h += '/' + tab;
+    if(location.hash !== h) location.hash = h;
+  }
+  window.__setHash = setHash;
+  function parseHash(){
+    var h = location.hash.replace(/^#\/?/, '');
+    if(!h) return null;
+    var parts = h.split('/');
+    var sec = SEC_NAME[parts[0]];
+    if(!sec) return null;
+    var tab = (parts.length > 1 && parts[1] !== '') ? parseInt(parts[1], 10) : null;
+    if(tab !== null && isNaN(tab)) tab = null;
+    return { sec: sec, tab: tab };
+  }
+  window.addEventListener('hashchange', function(){
+    var p = parseHash();
+    if(!p) return;
+    if(p.sec !== currentSection()) show(p.sec);
+    if((p.sec === 'sec-qa' || p.sec === 'sec-train') && typeof p.tab === 'number'
+        && window.STAGEC && p.tab !== STAGEC.curTab[p.sec]){
+      STAGEC.setTab(p.sec, p.tab);
+    }
+  });
   navBtns.forEach(function(b){
     b.addEventListener('click', function(){
       var k = b.getAttribute('data-sec');
-      if(k === 'sec-home'){ setNav('sec-home'); show('sec-home'); }
-      else if(k === 'sec-atlas'){ setNav('sec-atlas'); show('sec-atlas'); }
+      if(k === 'sec-home'){ show('sec-home'); setHash('sec-home'); }
+      else if(k === 'sec-atlas'){ show('sec-atlas'); setHash('sec-atlas'); }
       else if(k === 'sec-calc'){ doGo(); }
-      else if(k === 'sec-qa' || k === 'sec-train'){ setNav(k); show(k); }
-      else { showWip(k); }
+      else { show(k); setHash(k); }   // sec-qa / sec-train
     });
   });
 
@@ -1686,11 +1754,12 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
     try{
       CALC.showWithPlan(stateA, stateB, homeBody());
     }catch(err){
-      // 兜底：即使出错也切换到计算器页
+      // 兜底：即使出错也切换到计算器页（同样要关掉所有其他 section）
       var sc = document.getElementById('sec-calc');
       if(sc) sc.classList.add('active');
-      ['sec-home','sec-atlas'].forEach(function(s){ var e=document.getElementById(s); if(e) e.classList.remove('active'); });
+      ['sec-home','sec-qa','sec-train','sec-atlas'].forEach(function(s){ var e=document.getElementById(s); if(e) e.classList.remove('active'); });
       window.scrollTo(0, (window.__scrollPos && window.__scrollPos['sec-calc']) || 0);
+      setHash('sec-calc');
     }
   }
   var goEl = $('#pk-go');
@@ -1742,26 +1811,78 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
     ['29','肌肉的关节活动（图示版）','sec-atlas','✓ 图谱可查看（7张原图）',3]
   ]);
 
-  /* ---------- 图谱 ---------- */
-  var lightbox = $('#lightbox'), lbImg = $('#lb-img');
-  /* v2 CDN 加速版：图片改走 jsDelivr 免费 CDN（国内不挂代理也能较快加载，不压缩图片）
-     万一 CDN 加载失败，会自动回退到本站 images/ 里的原图，功能完全不变 */
+  /* ---------- 图谱（三级图片：缩略图 → 压缩图 → 原图） ---------- */
+  var lightbox = $('#lightbox'), lbImg = $('#lb-img'), lbOrigBtn = $('#lb-orig');
+  /* v3 三级图片（全部走 jsDelivr CDN，CDN 失败自动回退本站 images/）：
+     1) 缩略图 images/thumbs/*.jpg    ← 网格显示（平均 8KB/张，秒开）
+     2) 压缩图 images/compressed/*.jpg ← 灯箱默认显示（平均 ~176KB/张）
+     3) 原图 images/*.png             ← 点「查看原图」才加载；加载成功记入 localStorage，
+                                        刷新后直接显示原图（走浏览器缓存，不重复下载） */
   var IMG_BASE = 'https://cdn.jsdelivr.net/gh/Gowntn/fitness-table-web@main/images/';
-  function imgSrc(f, useCdn){ return (useCdn ? IMG_BASE : 'images/') + f; }
+  function imgPath(f, tier){
+    var base = f.replace(/\.png$/i, '');
+    if(tier === 'thumb') return 'thumbs/' + base + '.jpg';
+    if(tier === 'comp')  return 'compressed/' + base + '.jpg';
+    return f;
+  }
+  function imgSrc(f, tier, useCdn){ return (useCdn ? IMG_BASE : 'images/') + imgPath(f, tier); }
+  /* 已加载过原图的记忆：刷新后不用再次下载 */
+  var ORIG_KEY = 'web_v1_originals';
+  var originalsDone = [];
+  try{ originalsDone = JSON.parse(localStorage.getItem(ORIG_KEY) || '[]'); }catch(e){}
+  function markOriginal(f){
+    if(originalsDone.indexOf(f) >= 0) return;
+    originalsDone.push(f);
+    try{ localStorage.setItem(ORIG_KEY, JSON.stringify(originalsDone)); }catch(e){}
+  }
+  /* 灯箱当前图片状态 */
+  var lbState = null;
+  var lbLoading = $('#lb-loading'), lbLoadingTxt = $('#lb-loading-txt');
+
+  /* 灯箱图片操作：加载中提示（纯黑+转圈） / 图片淡入显示（先不显示图片，加载好再出现，避免闪烁） */
+  function lbShowLoading(txt){
+    lbLoading.classList.toggle('err', !!txt);   // 失败时隐藏转圈，只显示提示文字
+    lbLoadingTxt.textContent = txt || '加载中…';
+    lbLoading.style.display = 'block';
+  }
+  function lbHideLoading(){
+    lbLoading.style.display = 'none';
+  }
+  function setLbImg(src){
+    lbImg.classList.remove('lb-fade');
+    lbImg.src = src;
+    void lbImg.offsetWidth;      // 强制回流，让淡入动画重新触发
+    lbImg.classList.add('lb-fade');
+  }
+
+  /* 预加载一张图：CDN 优先；本地 file:// 打开时直接读本地（避免等 CDN 超时卡顿）；
+     CDN 失败自动回退本地；全部失败走 fail 回调 */
+  function loadTierImage(f, tier, done, fail){
+    var urls = [];
+    if(location.protocol !== 'file:') urls.push(imgSrc(f, tier, true));
+    urls.push(imgSrc(f, tier, false));
+    var i = 0;
+    (function next(){
+      if(i >= urls.length){ if(fail) fail(); return; }
+      var im = new Image();
+      im.onload = function(){ done(urls[i]); };
+      im.onerror = function(){ i++; next(); };
+      im.src = urls[i];
+    })();
+  }
+
   function gallery(el, files, cap){
     var host = document.getElementById(el);
     files.forEach(function(f, i){
       var d = document.createElement('div');
       d.className = 'img-item';
-      d.innerHTML = '<img src="' + imgSrc(f, true) + '" alt="' + cap + ' ' + (i+1) + '" loading="lazy" decoding="async">' +
-                    '<div class="cap">' + cap + ' ' + (i+1) + ' / ' + files.length + '</div>';
-      var im = d.querySelector('img'), cdnTried = false;
+      var im = document.createElement('img');
+      im.loading = 'lazy'; im.decoding = 'async';
+      im.alt = cap + ' ' + (i+1);
+      var cdnTried = (location.protocol === 'file:');  // 本地打开直接读本地缩略图，不先试 CDN
+      im.src = cdnTried ? imgSrc(f, 'thumb', false) : imgSrc(f, 'thumb', true);
       im.addEventListener('error', function(){
-        if(!cdnTried && im.src.indexOf(IMG_BASE) === 0){
-          cdnTried = true;
-          im.src = 'images/' + f;
-          return;
-        }
+        if(!cdnTried){ cdnTried = true; im.src = imgSrc(f, 'thumb', false); return; }
         im.style.display = 'none';
         if(!d.querySelector('.img-err')){
           var e = document.createElement('div');
@@ -1770,9 +1891,34 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
           d.appendChild(e);
         }
       });
+      var capEl = document.createElement('div');
+      capEl.className = 'cap';
+      capEl.textContent = cap + ' ' + (i+1) + ' / ' + files.length;
+      d.appendChild(im);
+      d.appendChild(capEl);
       d.addEventListener('click', function(){
-        if(im.complete && im.naturalWidth > 0){ lbImg.src = im.src; lbOpen(); }
-        else { im.src = im.src; }
+        if(!(im.complete && im.naturalWidth > 0)){ im.src = im.src; return; }
+        var tier = originalsDone.indexOf(f) >= 0 ? 'orig' : 'comp';
+        lbState = { f: f, tier: tier };
+        /* 先清空图片并显示「加载中」，图片加载好后再淡入显示（不残留上一张、不闪烁） */
+        lbImg.onerror = null;
+        lbImg.removeAttribute('src');
+        lbImg.classList.remove('lb-fade');
+        lbOrigBtn.textContent = '🖼 查看原图';
+        lbOrigBtn.classList.remove('done');
+        lbOrigBtn.disabled = true;
+        lbShowLoading();
+        lbOpen();
+        loadTierImage(f, tier, function(src){
+          if(!lbState || lbState.f !== f) return;   // 已切到别的图/已关闭，丢弃这次结果
+          lbHideLoading();
+          setLbImg(src);
+          lbOrigBtn.disabled = false;
+          if(tier === 'orig'){ lbOrigBtn.textContent = '✅ 原图（已缓存）'; lbOrigBtn.classList.add('done'); }
+        }, function(){
+          if(!lbState || lbState.f !== f) return;
+          lbShowLoading('⚠️ 图片加载失败，点 ✕ 关闭重试');
+        });
       });
       host.appendChild(d);
     });
@@ -1810,7 +1956,7 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   function lbReset(){ lbScale = 1; lbRot = 0; lbTx = 0; lbTy = 0; cancelAnimationFrame(lbRaf); lbApply(); }
   var lbRaf = 0;
   function lbOpen(){ lbReset(); lightbox.classList.add('show'); document.body.style.overflow = 'hidden'; }
-  function lbClose(){ lightbox.classList.remove('show'); document.body.style.overflow = ''; cancelAnimationFrame(lbRaf); }
+  function lbClose(){ lightbox.classList.remove('show'); document.body.style.overflow = ''; cancelAnimationFrame(lbRaf); lbHideLoading(); lbImg.classList.remove('lb-fade'); }
   // 以缩放焦点为中心缩放
   function zoomAt(cx, cy, s1){
     var vw = lightbox.clientWidth, vh = lightbox.clientHeight;
@@ -1911,9 +2057,50 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   $('#lb-reset').addEventListener('click', lbReset);
   lightbox.addEventListener('click', function(e){ if(e.target === lightbox) lbClose(); });
 
+  /* 查看原图：预加载原图，成功后替换显示并记住（刷新后直接显示，不再下载） */
+  lbOrigBtn.addEventListener('click', function(){
+    if(!lbState || lbState.tier === 'orig') return;
+    var f = lbState.f;
+    lbOrigBtn.disabled = true;
+    lbOrigBtn.textContent = '⏳ 正在加载原图…';
+    loadTierImage(f, 'orig', function(src){
+      if(!lbState || lbState.f !== f) return;   // 已切到别的图/已关闭，丢弃
+      setLbImg(src);
+      lbState.tier = 'orig';
+      markOriginal(f);
+      lbOrigBtn.textContent = '✅ 原图（已缓存）';
+      lbOrigBtn.classList.add('done');
+      lbOrigBtn.disabled = false;
+    }, function(){
+      lbOrigBtn.textContent = '原图加载失败，稍后再试';
+      lbOrigBtn.disabled = false;
+    });
+  });
+
+  /* 打开带 hash 的链接（如 #/calc、#/qa/1）时，恢复对应页面；无 hash 则正常显示首页 */
+  function applyInitialHash(){
+    var p = parseHash();
+    if(!p) return;
+    if(p.sec === 'sec-calc'){
+      // 走 showWithPlan 以确保滚轮定位正确（隐藏容器滚动位置问题）
+      CALC.showWithPlan(savedPlan.planA, savedPlan.planB, null);
+      return;
+    }
+    if(p.sec !== 'sec-home') show(p.sec);
+    if((p.sec === 'sec-qa' || p.sec === 'sec-train') && typeof p.tab === 'number' && window.STAGEC){
+      STAGEC.setTab(p.sec, p.tab);
+    }
+  }
   function boot(){
     try{ CALC.init(); }catch(e){ console.error('CALC.init', e); }
     try{ STAGEC.init(); }catch(e){ console.error('STAGEC.init', e); }
+    try{ applyInitialHash(); }catch(e){ console.error('applyInitialHash', e); }
+    /* PWA 离线支持：注册 Service Worker（file:// 本地打开会静默失败，不影响使用） */
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', function(){
+        navigator.serviceWorker.register('./sw.js').catch(function(){});
+      });
+    }
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', boot);
