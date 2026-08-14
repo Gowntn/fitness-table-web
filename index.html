@@ -446,6 +446,12 @@ try{ if(localStorage.getItem('web_v1_theme')==='dark') document.documentElement.
   <section id="sec-atlas" class="section">
     <div class="note">🔍 点击任意图片可<b>全屏放大</b>：网格先显示<b>缩略图</b>（秒开），点开后默认是<b>压缩图</b>；需要看清细节时点灯箱里的<b>「查看原图」</b>加载原图，<b>加载过一次后自动记住，刷新不用重新下载</b>。<b>深色模式下图片亮度不变</b>。</div>
 
+    <div class="card" id="atlas-preload">
+      <div class="pk-title">⬇️ 一键下载全部原图（可选）</div>
+      <div class="pk-sub">在后台慢慢下载全部 34 张原图：之后打开任意图片直接显示原图、离线也能看；下载完这个按钮自动消失。</div>
+      <button class="pk-go" id="preload-orig-btn">开始下载全部原图（约 55MB）</button>
+    </div>
+
     <div class="gallery-title" id="atlas-upper">25 · 上身肌肉拉伸 <small>（10 张）</small></div>
     <div class="img-list" id="gal-upper"></div>
 
@@ -1934,16 +1940,16 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   gallery('gal-joint', jt, '关节活动');
   gallery('gal-muscle', mu, '肌肉关节活动');
 
-  /* ---------- 后台自动预下载：缩略图 → 压缩图 → 原图（打开网页后静默执行） ---------- */
+  /* ---------- 后台自动预下载：缩略图 → 压缩图（打开网页后静默执行） ---------- */
   var PRELOAD_FILES = up.concat(lo, jt, mu);   // 34 张图
   var PRELOAD_CONC = 4;                        // 每阶段同时下载数（不占满带宽）
   function preloadOne(urls, done){
-    /* urls：按顺序尝试 [CDN, 本地]；file:// 下只有本地 */
+    /* urls：按顺序尝试 [CDN, 本地]；file:// 下只有本地；done(success) */
     var i = 0;
     (function next(){
-      if(i >= urls.length){ done(); return; }
+      if(i >= urls.length){ done(false); return; }
       var im = new Image();
-      im.onload = function(){ done(); };
+      im.onload = function(){ done(true); };
       im.onerror = function(){ i++; next(); };
       im.src = urls[i];
     })();
@@ -1966,13 +1972,54 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
     pump();
   }
   function startBackgroundPreload(){
-    /* 用户开了「省流量模式」（saveData）时跳过原图，只下缩略图和压缩图 */
-    var saveData = false;
-    try{ saveData = !!(navigator.connection && navigator.connection.saveData); }catch(e){}
+    /* 自动只下缩略图和压缩图；原图由图谱页「一键下载原图」按钮手动触发 */
     preloadStage('thumb', function(){
-      preloadStage('comp', function(){
-        if(!saveData) preloadStage('orig', function(){});
-      });
+      preloadStage('comp', function(){});
+    });
+  }
+
+  /* ---------- 图谱页「一键下载全部原图」：后台下载，完毕后按钮消失 ---------- */
+  var ORIG_PRELOAD_KEY = 'web_v1_orig_preloaded';
+  var preloadBox = $('#atlas-preload'), preloadBtn = $('#preload-orig-btn');
+  var origPreloaded = false;
+  try{ origPreloaded = localStorage.getItem(ORIG_PRELOAD_KEY) === '1'; }catch(e){}
+  var allOrigDone = PRELOAD_FILES.every(function(f){ return originalsDone.indexOf(f) >= 0; });
+  if((origPreloaded || allOrigDone) && preloadBox){
+    preloadBox.style.display = 'none';
+  } else if(preloadBtn){
+    preloadBtn.addEventListener('click', function(){
+      preloadBtn.disabled = true;
+      preloadBtn.textContent = '⏳ 正在后台下载原图 0/34…';
+      var idx = 0, active = 0, finished = 0, okCount = 0, total = PRELOAD_FILES.length;
+      function pump(){
+        while(active < PRELOAD_CONC && idx < total){
+          var f = PRELOAD_FILES[idx++];
+          active++;
+          var urls = [];
+          if(location.protocol !== 'file:') urls.push(imgSrc(f, 'orig', true));
+          urls.push(imgSrc(f, 'orig', false));
+          preloadOne(urls, function(ok){
+            active--; finished++;
+            if(ok) okCount++;
+            preloadBtn.textContent = '⏳ 正在后台下载原图 ' + finished + '/' + total + '…';
+            if(finished >= total){
+              if(okCount >= total){
+                /* 全部成功：记入原图记忆（之后灯箱直接显示原图），按钮消失 */
+                PRELOAD_FILES.forEach(function(f){
+                  if(originalsDone.indexOf(f) < 0) originalsDone.push(f);
+                });
+                try{ localStorage.setItem(ORIG_KEY, JSON.stringify(originalsDone)); }catch(e){}
+                try{ localStorage.setItem(ORIG_PRELOAD_KEY, '1'); }catch(e){}
+                if(preloadBox) preloadBox.style.display = 'none';
+              } else {
+                preloadBtn.disabled = false;
+                preloadBtn.textContent = '⬇️ 有 ' + (total - okCount) + ' 张没下载成功，点此重试';
+              }
+            } else pump();
+          });
+        }
+      }
+      pump();
     });
   }
 
