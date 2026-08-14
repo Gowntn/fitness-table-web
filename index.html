@@ -1934,6 +1934,48 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
   gallery('gal-joint', jt, '关节活动');
   gallery('gal-muscle', mu, '肌肉关节活动');
 
+  /* ---------- 后台自动预下载：缩略图 → 压缩图 → 原图（打开网页后静默执行） ---------- */
+  var PRELOAD_FILES = up.concat(lo, jt, mu);   // 34 张图
+  var PRELOAD_CONC = 4;                        // 每阶段同时下载数（不占满带宽）
+  function preloadOne(urls, done){
+    /* urls：按顺序尝试 [CDN, 本地]；file:// 下只有本地 */
+    var i = 0;
+    (function next(){
+      if(i >= urls.length){ done(); return; }
+      var im = new Image();
+      im.onload = function(){ done(); };
+      im.onerror = function(){ i++; next(); };
+      im.src = urls[i];
+    })();
+  }
+  function preloadStage(tier, done){
+    var idx = 0, active = 0, finished = 0, total = PRELOAD_FILES.length;
+    function pump(){
+      while(active < PRELOAD_CONC && idx < total){
+        var f = PRELOAD_FILES[idx++];
+        active++;
+        var urls = [];
+        if(location.protocol !== 'file:') urls.push(imgSrc(f, tier, true));
+        urls.push(imgSrc(f, tier, false));
+        preloadOne(urls, function(){
+          active--; finished++;
+          if(finished >= total) done(); else pump();
+        });
+      }
+    }
+    pump();
+  }
+  function startBackgroundPreload(){
+    /* 用户开了「省流量模式」（saveData）时跳过原图，只下缩略图和压缩图 */
+    var saveData = false;
+    try{ saveData = !!(navigator.connection && navigator.connection.saveData); }catch(e){}
+    preloadStage('thumb', function(){
+      preloadStage('comp', function(){
+        if(!saveData) preloadStage('orig', function(){});
+      });
+    });
+  }
+
   // 灯箱：滚轮缩放 + 双指缩放旋转 + 拖动/惯性 + 背景锁定
   var lbScale = 1, lbRot = 0, lbTx = 0, lbTy = 0;
   function lbClamp(){
@@ -2101,6 +2143,12 @@ var CALC_DATA = {"foods": [["米（生）", 75.0, 0.0], ["米饭（偏软）", 2
         navigator.serviceWorker.register('./sw.js').catch(function(){});
       });
     }
+    /* 后台自动预下载：页面完全加载后、浏览器空闲时开始（缩略图 → 压缩图 → 原图） */
+    window.addEventListener('load', function(){
+      var start = function(){ try{ startBackgroundPreload(); }catch(e){} };
+      if('requestIdleCallback' in window) requestIdleCallback(start, {timeout: 3000});
+      else setTimeout(start, 1500);
+    });
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', boot);
